@@ -45,22 +45,117 @@ def test_koji_search_package(koji_pkgname):
     assert pkgname in html
 
 
+def split_nevr(nevr):
+    nev, _, release = nevr.rpartition('-')
+    name, _, ev = nev.rpartition('-')
+    if ':' in ev:
+        epoch, _, version = ev.partition(':')
+    else:
+        epoch, version = None, ev
+    return name, epoch, version, release
+
+
+@pytest.mark.parametrize('nevr', ['perl-1:5.26.0-399.fc28',
+                                  'perl-5.26.0-399.fc28'])
+def test_split_nevr(nevr):
+    name, epoch, version, release = split_nevr(nevr)
+    assert name == 'perl'
+    if ':' in nevr:
+        assert epoch == '1'
+    else:
+        assert epoch is None
+    assert version == '5.26.0'
+    assert release == '399.fc28'
+
+
+def guess_dist(release):
+    parts = release.split('.')
+    for part in parts:
+        if part.startswith(('fc', 'el', 'epel')):
+            return part
+
+
+@pytest.mark.parametrize('release', ['399.fc28', '1.fc28.8',
+                                     '12.20170309git3300eb5.fc28'])
+def test_guess_dist_fc28(release):
+    assert guess_dist(release) == 'fc28'
+
+
+@pytest.mark.parametrize('release', ['399.epel7', '1.epel7.8',
+                                     '12.20170309git3300eb5.epel7'])
+def test_guess_dist_epel7(release):
+    assert guess_dist(release) == 'epel7'
+
+
+class Build:
+    def __init__(self, nevr, koji_id, status):
+        self.nevr = nevr
+        self.koji_id = int(koji_id)
+        self.status = status
+
+    def __repr__(self):
+        return self.nevr
+
+    def _attrs(self):
+        if not hasattr(self, '_name'):
+            (self._name, self._epoch,
+             self._version, self._release) = split_nevr(self.nevr)
+            self._dist = guess_dist(self._release)
+
+    @property
+    def name(self):
+        self._attrs()
+        return self._name
+
+    @property
+    def epoch(self):
+        self._attrs()
+        return self._epoch
+
+    @property
+    def version(self):
+        self._attrs()
+        return self._version
+
+    @property
+    def release(self):
+        self._attrs()
+        return self._release
+
+    @property
+    def dist(self):
+        self._attrs()
+        return self._dist
+
+
+def test_build_class():
+    build = Build('chromium-freeworld-60.0.3112.113-1.fc27', '123', 'complete')
+    assert build.nevr == 'chromium-freeworld-60.0.3112.113-1.fc27'
+    assert build.koji_id == 123
+    assert build.status == 'complete'
+    assert build.name == 'chromium-freeworld'
+    assert build.epoch is None
+    assert build.version == '60.0.3112.113'
+    assert build.release == '1.fc27'
+    assert build.dist == 'fc27'
+
+
 def koji_builds(koji, pkgname):
     html = koji_search_package(koji, pkgname)
     builds = RE_BUILDS.findall(html)
     statuses = RE_STATUS.findall(html)
     for idx, build in enumerate(builds):
-        yield build[1], int(build[0]), statuses[idx]
+        yield Build(build[1], build[0], statuses[idx])
 
 
 def test_koji_builds(koji_pkgname):
     koji, pkgname = koji_pkgname
     builds = list(koji_builds(koji, pkgname))
     for build in builds:
-        assert build[0].startswith(pkgname)
-        assert isinstance(build[1], int)
-        assert build[2] in ('complete', 'deleted', 'canceled', 'free',
-                            'open', 'failed', 'closed')
+        assert build.nevr.startswith(pkgname)
+        assert isinstance(build.koji_id, int)
+        assert build.status in ('complete', 'deleted', 'canceled', 'free',
+                                'open', 'failed', 'closed')
 
 
 if __name__ == '__main__':
