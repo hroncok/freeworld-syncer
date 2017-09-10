@@ -102,30 +102,11 @@ class Build:
              self._version, self._release) = split_nevr(self.nevr)
             self._dist = guess_dist(self._release)
 
-    @property
-    def name(self):
-        self._attrs()
-        return self._name
-
-    @property
-    def epoch(self):
-        self._attrs()
-        return self._epoch
-
-    @property
-    def version(self):
-        self._attrs()
-        return self._version
-
-    @property
-    def release(self):
-        self._attrs()
-        return self._release
-
-    @property
-    def dist(self):
-        self._attrs()
-        return self._dist
+    def __getattr__(self, name):
+        if name in ('name', 'epoch', 'version', 'release', 'dist'):
+            self._attrs()
+            return getattr(self, '_' + name)
+        raise AttributeError()
 
 
 def test_build_class():
