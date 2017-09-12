@@ -139,9 +139,31 @@ def test_koji_builds(koji_pkgname):
                                 'open', 'failed', 'closed')
 
 
-if __name__ == '__main__':
-    for build in koji_builds(FEDORA_KOJI, FEDORA_PKGNAME):
-        print(build)
+def latest_complete_builds(builds):
+    latest = {}
+    for build in builds:
+        if build.dist not in latest and build.status in ('complete', 'closed'):
+            latest[build.dist] = build
+    return latest
 
-    for build in koji_builds(FUSION_KOJI, FUSION_PKGNAME):
-        print(build)
+
+def test_latest_complete_builds():
+    builds = [
+        Build('a-123-2.fc28', '123', 'failed'),
+        Build('a-123-2.fc27', '123', 'failed'),
+        Build('a-123-1.fc28', '123', 'complete'),
+        Build('a-123-1.epel7', '123', 'complete'),
+        Build('a-122-1.epel7', '123', 'complete'),
+    ]
+    latest = latest_complete_builds(builds)
+    assert len(latest) == 2
+    assert latest['fc28'].nevr == 'a-123-1.fc28'
+    assert latest['epel7'].nevr == 'a-123-1.epel7'
+
+
+if __name__ == '__main__':
+    import pprint
+    pprint.pprint(latest_complete_builds(
+        koji_builds(FEDORA_KOJI, FEDORA_PKGNAME)))
+    pprint.pprint(latest_complete_builds(
+        koji_builds(FUSION_KOJI, FUSION_PKGNAME)))
