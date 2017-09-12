@@ -9,6 +9,9 @@ FUSION_PKGNAME = FEDORA_PKGNAME + '-freeworld'
 FEDORA_KOJI = 'https://koji.fedoraproject.org/koji/'
 FUSION_KOJI = 'http://koji.rpmfusion.org/koji/'
 
+FEDORA_PREFIX = 'fc'
+FEDORA_EOL = 24
+
 
 # Global constants
 RE_BUILDS = re.compile(r'<td><a href="buildinfo\?buildID=(\d+)">([^<]+)</a>'
@@ -139,10 +142,20 @@ def test_koji_builds(koji_pkgname):
                                 'open', 'failed', 'closed')
 
 
+def eol(dist):
+    if dist.startswith(FEDORA_PREFIX):
+        num = int(dist.lstrip(FEDORA_PREFIX))
+        if num <= FEDORA_EOL:
+            return True
+    return False
+
+
 def latest_complete_builds(builds):
     latest = {}
     for build in builds:
-        if build.dist not in latest and build.status in ('complete', 'closed'):
+        if (build.dist not in latest and
+                build.status in ('complete', 'closed') and
+                not eol(build.dist)):
             latest[build.dist] = build
     return latest
 
@@ -152,6 +165,7 @@ def test_latest_complete_builds():
         Build('a-123-2.fc28', '123', 'failed'),
         Build('a-123-2.fc27', '123', 'failed'),
         Build('a-123-1.fc28', '123', 'complete'),
+        Build('a-123-1.fc20', '123', 'complete'),
         Build('a-123-1.epel7', '123', 'complete'),
         Build('a-122-1.epel7', '123', 'complete'),
     ]
