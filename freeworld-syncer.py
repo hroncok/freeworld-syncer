@@ -1,10 +1,13 @@
+import click
 import pytest
 import re
 import requests
+import sys
 
 # General config
 FEDORA_PKGNAME = 'chromium'
-FUSION_PKGNAME = FEDORA_PKGNAME + '-freeworld'
+SUFFIX = 'freeworld'
+FUSION_PKGNAME = f'{FEDORA_PKGNAME}-{SUFFIX}'
 
 FEDORA_KOJI = 'https://koji.fedoraproject.org/koji/'
 FUSION_KOJI = 'http://koji.rpmfusion.org/koji/'
@@ -175,9 +178,82 @@ def test_latest_complete_builds():
     assert latest['epel7'].nevr == 'a-123-1.epel7'
 
 
+def compare_evr(build1, build2):
+    return (build1 is not None and
+            build2 is not None and
+            build1.epoch == build2.epoch and
+            build1.version == build2.version and
+            build1.release == build2.release)
+
+
+def test_compare_evr_ok():
+    evr = '60.0.3112.113-1.fc28'
+    assert compare_evr(
+        Build(f'foo-{evr}', '1', 'complete'),
+        Build(f'bar-{evr}', '1', 'complete')
+    )
+
+
+def test_compare_evr_fail():
+    assert not compare_evr(
+        Build('foo-123-2.fc28', '1', 'complete'),
+        Build('foo-123-2.fc27', '1', 'complete')
+    )
+
+
+def test_compare_evr_none():
+    assert not compare_evr(
+        Build('foo-123-2.fc28', '1', 'complete'),
+        None
+    )
+
+
+@click.group()
+def fsyncer():
+    """Compare package across Fedora and RPM Fusion"""
+    pass
+
+
+@fsyncer.command()
+@click.option('-p', '--pkgname', default=FEDORA_PKGNAME, metavar='NAME',
+              help=f'Name of the Fedora package (default: {FEDORA_PKGNAME})')
+@click.option('-f', '--freeworldname', default=None, metavar='NAME',
+              help=f'Name of the RPM Fusion package '
+                   f'(default: <pkgname>-{SUFFIX})')
+def koji(pkgname, freeworldname):
+    """how sync status on Koji builds"""
+    freeworldname = freeworldname or f'{pkgname}-{SUFFIX}'
+
+    line = 'Koji check for '
+    line += click.style(pkgname, bold=True, fg='blue')
+    line += ' and '
+    line += click.style(freeworldname, bold=True, fg='magenta')
+    click.echo(line)
+
+    fedora_builds = latest_complete_builds(
+        koji_builds(FEDORA_KOJI, pkgname))
+    fusion_builds = latest_complete_builds(
+        koji_builds(FUSION_KOJI, freeworldname))
+
+    exitcode = 0
+
+    for dist in reversed(sorted(fedora_builds.keys())):
+        line = click.style(f'{dist}: ', bold=True)
+
+        fedora_build = fedora_builds[dist]
+        fusion_build = fusion_builds.get(dist)
+
+        if compare_evr(fedora_build, fusion_build):
+            fg = 'green'
+        else:
+            fg = 'red'
+            exitcode = 1
+
+        line += click.style(f'{fedora_build} {fusion_build}', fg=fg)
+        click.echo(line)
+
+    sys.exit(exitcode)
+
+
 if __name__ == '__main__':
-    import pprint
-    pprint.pprint(latest_complete_builds(
-        koji_builds(FEDORA_KOJI, FEDORA_PKGNAME)))
-    pprint.pprint(latest_complete_builds(
-        koji_builds(FUSION_KOJI, FUSION_PKGNAME)))
+    fsyncer()
