@@ -50,7 +50,7 @@ Run the tests with ``pytest``::
    $ python3.6 -m venv __env__
    $ . __env__/bin/activate
    (__env__) $ python -m pip install -r requirements.txt
-   (__env__) $ python -m pytest --flake8 *.py -v
+   (__env__) $ python -m pytest
 
 
 License

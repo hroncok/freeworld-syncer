@@ -1,0 +1,5 @@
+/scm
+/__pycache__
+.eggs
+/dist
+/build
