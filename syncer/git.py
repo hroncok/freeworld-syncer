@@ -3,7 +3,7 @@ import os
 import pathlib
 import subprocess
 
-from .koji import split_nevr, guess_dist
+from .koji import split_nevr
 
 SCM = pathlib.Path.cwd() / 'scm'
 
@@ -130,8 +130,7 @@ def nevr(pkgname, freeworldname):
     nevra = out.splitlines()[0].strip()
     nevr, *_ = nevra.rpartition('.')
     _, epoch, version, release = split_nevr(nevr)
-    dist = guess_dist(release)
-    release = release.replace(f'.{dist}', '')
+    release, *_ = release.rpartition('.')
     if epoch:
         return f'{pkgname}-{epoch}:{version}-{release}'
     return f'{pkgname}-{version}-{release}'
