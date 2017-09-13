@@ -12,20 +12,24 @@ FUSION_PKGNAME = f'{FEDORA_PKGNAME}-{SUFFIX}'
 
 
 @click.group()
-def fsyncer():
-    """Compare package across Fedora and RPM Fusion"""
-    pass
-
-
-@fsyncer.command()
 @click.option('-p', '--pkgname', default=FEDORA_PKGNAME, metavar='NAME',
               help=f'Name of the Fedora package (default: {FEDORA_PKGNAME})')
 @click.option('-f', '--freeworldname', default=None, metavar='NAME',
               help=f'Name of the RPM Fusion package '
                    f'(default: <pkgname>-{SUFFIX})')
-def koji(pkgname, freeworldname):
+@click.pass_context
+def fsyncer(ctx, pkgname, freeworldname):
+    """Compare package across Fedora and RPM Fusion"""
+    ctx.obj['pkgname'] = pkgname
+    ctx.obj['freeworldname'] = freeworldname
+
+
+@fsyncer.command()
+@click.pass_context
+def koji(ctx):
     """how sync status on Koji builds"""
-    freeworldname = freeworldname or f'{pkgname}-{SUFFIX}'
+    pkgname = ctx.obj['pkgname']
+    freeworldname = ctx.obj['freeworldname'] or f'{pkgname}-{SUFFIX}'
 
     line = 'Koji check for '
     line += click.style(pkgname, bold=True, fg='blue')
@@ -59,4 +63,4 @@ def koji(pkgname, freeworldname):
 
 
 if __name__ == '__main__':
-    fsyncer()
+    fsyncer(obj={})

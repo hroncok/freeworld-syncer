@@ -33,7 +33,7 @@ show what's wrong.
 
 Example::
 
-   $ python freeworld-syncer.py koji --pkgname chromium
+   $ python freeworld-syncer.py --pkgname chromium koji
    Koji check for chromium and chromium-freeworld
    fc28: chromium-60.0.3112.113-1.fc28 None (red)
    fc27: chromium-60.0.3112.113-1.fc27 chromium-freeworld-60.0.3112.113-1.fc27 (green)
