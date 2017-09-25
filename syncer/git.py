@@ -57,6 +57,7 @@ def clone_or_reset(pkgname, freeworldname, *, rffree):
         git('fetch', '--all')
         git('checkout', 'master')
         git('reset', '--hard', 'origin/master')
+        git('clean', '-f')
 
 
 def setup_remotes(pkgname, freeworldname):
@@ -91,10 +92,18 @@ def git_merge(pkgname, freeworldname, branch):
 def sources_magic(pkgname, freeworldname, branch):
     repo = SCM / freeworldname
     with cd(repo):
+        sources_path = pathlib.Path('./sources')
         head = gitout('rev-parse', 'HEAD')
         try:
             # download possibly new Fedora sources
             git('reset', '--hard', f'fedora/{branch}')
+
+            # HACK alert 1/3
+            # This works for chromium, but might fail somewhere else
+            sources = sources_path.read_text().strip().splitlines()
+            altered_sources = [l for l in sources if pkgname not in l]
+            sources_path.write_text('\n'.join(altered_sources) + '\n')
+
             run('fedpkg', '--module-name', pkgname, 'sources')
         finally:
             # back to original HEAD
@@ -103,18 +112,17 @@ def sources_magic(pkgname, freeworldname, branch):
         # download remaining sources from their URLs
         run('spectool', '-g', f'{freeworldname}.spec')
 
-        sources = pathlib.Path('./sources').read_text().strip().splitlines()
+        sources = sources_path.read_text().strip().splitlines()
         new_sources = []
         for source in sources:
             if ' = ' in source:
                 raise NotImplementedError('new source format in RPM Fusion')
             *_, source = source.strip().rpartition(' ')
-            # HACK alert (part 1/2)
-            # This works for chromium, but might fail somewhere else
+            # HACK alert (part 2/3)
             if not source.startswith(pkgname):
                 new_sources.append(source)
 
-        # HACK alert (part 2/2)
+        # HACK alert (part 3/3)
         untracked = gitout('ls-files', '--others',
                            '--exclude-standard').splitlines()
         if len(untracked) != 1:
