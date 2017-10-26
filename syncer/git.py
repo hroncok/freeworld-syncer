@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import os
 import pathlib
 import subprocess
@@ -81,22 +82,33 @@ def setup_remotes(pkgname, freeworldname):
             f'https://src.fedoraproject.org/rpms/{pkgname}.git')
 
 
-def git_merge(pkgname, freeworldname, branch):
+@functools.lru_cache(maxsize=2)
+def resolve(merge_branch):
+    try:
+        gitout('rev-parse', f'fedora/{merge_branch}')
+        # it's a branch/tag
+        return f'fedora/{merge_branch}'
+    except subprocess.CalledProcessError:
+        # it's a hash (or it's bogus)
+        return merge_branch
+
+
+def git_merge(pkgname, freeworldname, branch, merge_branch):
     repo = SCM / freeworldname
     with cd(repo):
         git('checkout', branch)
         # merge the branch, keep our sources and .gitignore
-        git('merge', f'fedora/{branch}', '-X', 'ours', '-m', 'XXX merge')
+        git('merge', resolve(merge_branch), '-X', 'ours', '-m', 'XXX merge')
 
 
-def sources_magic(pkgname, freeworldname, branch):
+def sources_magic(pkgname, freeworldname, branch, merge_branch):
     repo = SCM / freeworldname
     with cd(repo):
         sources_path = pathlib.Path('./sources')
         head = gitout('rev-parse', 'HEAD')
         try:
             # download possibly new Fedora sources
-            git('reset', '--hard', f'fedora/{branch}')
+            git('reset', '--hard', resolve(merge_branch))
 
             # HACK alert 1/3
             # This works for chromium, but might fail somewhere else
@@ -144,7 +156,7 @@ def nevr(pkgname, freeworldname):
     return f'{pkgname}-{version}-{release}'
 
 
-def squash(pkgname, freeworldname, branch):
+def squash(pkgname, freeworldname):
     repo = SCM / freeworldname
     with cd(repo):
         msg = f'Merge Fedora, {nevr(pkgname, freeworldname)}'
