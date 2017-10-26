@@ -77,27 +77,31 @@ def yellow(text):
 
 @fsyncer.command()
 @click.option('-b', '--branch', default='master', metavar='BRANCH',
-              help=f'git branch (default: master)')
+              help='RPMFusion git branch (default: master)')
+@click.option('-m', '--merge-branch', default=None, metavar='FEDORA_BRANCH',
+              help='Fedora git branch/tag/commit to merge (default: same as '
+                   '--branch)')
 @click.option('-n', '--namespace', default='free',
               type=click.Choice(['free', 'nonfree']),
               help='RPM Fusion namespace (default: free)')
 @click.pass_context
-def git(ctx, branch, namespace):
+def git(ctx, branch, merge_branch, namespace):
     """Merge Fedora git to RPMFusion (does not push)"""
     pkgname, freeworldname = pkgname_freeworldname(ctx)
+    merge_branch = merge_branch or branch
     welcome('Git sync', pkgname, freeworldname)
 
     yellow('\nSetting up git-scm in ./scm...')
     clone_or_reset(pkgname, freeworldname, rffree=namespace == 'free')
 
-    yellow(f'Merging {branch} from Fedora to RPM Fusion...')
-    git_merge(pkgname, freeworldname, branch)
+    yellow(f'Merging {merge_branch} from Fedora to RPM Fusion {branch}...')
+    git_merge(pkgname, freeworldname, branch, merge_branch)
 
     yellow('Getting sources...')
-    sources_magic(pkgname, freeworldname, branch)
+    sources_magic(pkgname, freeworldname, branch, merge_branch)
 
     yellow('Squashing source change to merge commit...')
-    squash(pkgname, freeworldname, branch)
+    squash(pkgname, freeworldname)
 
     yellow(f'\nReady in ./scm/{freeworldname}')
     yellow('Inspect the commit and push manually at will')
