@@ -6,7 +6,7 @@ FEDORA_KOJI = 'https://koji.fedoraproject.org/koji/'
 FUSION_KOJI = 'http://koji.rpmfusion.org/koji/'
 
 FEDORA_PREFIX = 'fc'
-FEDORA_EOL = 24
+FEDORA_EOL = 25
 
 
 # Global constants
