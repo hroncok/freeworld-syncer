@@ -84,8 +84,11 @@ def yellow(text):
 @click.option('-n', '--namespace', default='free',
               type=click.Choice(['free', 'nonfree']),
               help='RPM Fusion namespace (default: free)')
+@click.option('-S', '--no-sources', is_flag=True,
+              help='Do not perform sources magic (useful with plain release '
+                   'bumps')
 @click.pass_context
-def git(ctx, branch, merge_branch, namespace):
+def git(ctx, branch, merge_branch, namespace, no_sources):
     """Merge Fedora git to RPMFusion (does not push)"""
     pkgname, freeworldname = pkgname_freeworldname(ctx)
     merge_branch = merge_branch or branch
@@ -97,8 +100,9 @@ def git(ctx, branch, merge_branch, namespace):
     yellow(f'Merging {merge_branch} from Fedora to RPM Fusion {branch}...')
     git_merge(pkgname, freeworldname, branch, merge_branch)
 
-    yellow('Getting sources...')
-    sources_magic(pkgname, freeworldname, branch, merge_branch)
+    if no_sources is not True:
+        yellow('Getting sources...')
+        sources_magic(pkgname, freeworldname, branch, merge_branch)
 
     yellow('Squashing source change to merge commit...')
     squash(pkgname, freeworldname)
